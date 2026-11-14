@@ -1,0 +1,25 @@
+# CI only (GitHub Actions): adds a simulated LLM provider so the chat can be
+# tested without a real OpenAI key or credits. Never used by the evaluator.
+#   docker compose -f docker-compose.yml -f docker/ci/compose.ci.yml up -d --wait
+services:
+  llm-stub:
+    image: node:22-alpine
+    command: ['node', '/stub/llm-stub.mjs']
+    volumes:
+      # Relative to the project directory (where docker-compose.yml is), not to this file.
+      - ./docker/ci/llm-stub.mjs:/stub/llm-stub.mjs:ro
+    ports:
+      - '127.0.0.1:4010:4010'
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:4010/').then(() => process.exit(0), () => process.exit(1))"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    environment:
+      OPENAI_API_KEY: ci-fake-key-not-a-secret
+      OPENAI_BASE_URL: http://llm-stub:4010/v1
+    depends_on:
+      llm-stub:
+        condition: service_healthy

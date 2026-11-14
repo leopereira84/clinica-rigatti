@@ -1,0 +1,80 @@
+# Local environment: MongoDB (replica set) + API + frontend (nginx).
+# Configuration: copy .env.example to .env and fill in the values (see README).
+# The API and the database are only reachable inside the Compose network;
+# the browser uses http://localhost:8080, where nginx proxies /api to the API.
+
+x-backend-env: &backend-env
+  PORT: '3333'
+  MONGODB_URI: mongodb://mongo:27017/vitrine?replicaSet=rs0
+  JWT_SECRET: ${JWT_SECRET:?Defina JWT_SECRET no arquivo .env (mínimo de 32 caracteres)}
+  JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-2h}
+  BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-12}
+  CORS_ORIGIN: http://localhost:${FRONTEND_PORT:-8080}
+
+services:
+  mongo:
+    image: mongo:8.0
+    command: ['--replSet', 'rs0', '--bind_ip_all']
+    volumes:
+      - mongo-data:/data/db
+      - ./docker/mongo:/docker-scripts:ro
+    healthcheck:
+      # Initiates the replica set on the first start; healthy once it is PRIMARY.
+      test: ['CMD', 'mongosh', '--quiet', '--norc', '/docker-scripts/init-replica-set.js']
+      interval: 5s
+      timeout: 10s
+      retries: 30
+      start_period: 10s
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    environment:
+      <<: *backend-env
+      NODE_ENV: production
+      # Only the backend receives the key. Empty = chat disabled (POST /api/chat answers 503).
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
+      LLM_TIMEOUT_MS: ${LLM_TIMEOUT_MS:-20000}
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3333/api/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    ports:
+      - '${FRONTEND_PORT:-8080}:80'
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1/']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  # One-off task, never started by `up`: `docker compose run --rm seed`.
+  # Recreates only the 2 demo companies in the Docker MongoDB (same script as `npm run seed:apply`).
+  seed:
+    build: ./backend
+    profiles: ['tools']
+    environment:
+      <<: *backend-env
+      # The seed refuses to run with NODE_ENV=production.
+      NODE_ENV: development
+      SEED_PASSWORD: ${SEED_PASSWORD:-}
+    command: ['node', 'dist/seed/run.js', '--yes']
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+volumes:
+  mongo-data:

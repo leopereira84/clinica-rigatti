@@ -9,6 +9,7 @@ Aplicação full stack em que várias empresas compartilham a mesma infraestrutu
 ## Sumário
 
 - [Tecnologias](#tecnologias)
+- [Execução com Docker](#execução-com-docker)
 - [Início rápido](#início-rápido)
 - [Variáveis de ambiente](#variáveis-de-ambiente)
 - [MongoDB](#mongodb)
@@ -32,6 +33,71 @@ Aplicação full stack em que várias empresas compartilham a mesma infraestrutu
 | Frontend | React 19, TypeScript, Vite 8, React Router 7, CSS Modules, lucide-react |
 | Testes | Vitest, Supertest, mongodb-memory-server (replica set em memória) |
 | Banco | MongoDB Atlas (ou qualquer MongoDB em modo replica set) |
+| Containers | Docker Compose: MongoDB 8 (replica set de um nó), API Node 22, nginx servindo o frontend |
+
+## Execução com Docker
+
+Caminho mais curto para avaliar a aplicação: **não exige Node.js, npm nem MongoDB instalados**, apenas Docker com Compose v2 (Docker Desktop ou Docker Engine). O MongoDB roda em um container local; nada é gravado no Atlas.
+
+| Serviço | O que faz | Acesso |
+|---|---|---|
+| `mongo` | MongoDB 8 em replica set `rs0` (exigido pelas transações), dados no volume `mongo-data` | apenas na rede interna do Compose |
+| `backend` | API compilada (`node dist/server.js`), `NODE_ENV=production` | apenas na rede interna; o navegador usa o proxy |
+| `frontend` | nginx com o build de produção do React; encaminha `/api` para o `backend` | **http://localhost:8080** |
+| `seed` | tarefa avulsa que cria as empresas de demonstração; nunca sobe com `up` | `docker compose run --rm seed` |
+
+**1. Configuração** (a partir da raiz do repositório; funciona em Bash, PowerShell e Prompt de Comando com `copy`):
+
+```bash
+cp .env.example .env
+```
+
+Edite o `.env` (ele está no `.gitignore`):
+
+| Variável | Obrigatória | Descrição |
+|---|---|---|
+| `JWT_SECRET` | sim | Mínimo de 32 caracteres. Gere com `docker run --rm node:22-alpine node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"` |
+| `SEED_PASSWORD` | para o seed | Senha dos usuários de demonstração (mínimo de 8 caracteres) |
+| `OPENAI_API_KEY` | não | Entregue **somente ao container `backend`**. Vazia: o assistente responde `503` e o resto funciona |
+| `FRONTEND_PORT` | não | Porta local da aplicação (padrão `8080`) |
+
+**2. Subir, preparar os dados e acessar:**
+
+```bash
+docker compose up -d --build --wait   # constrói as imagens e espera os healthchecks
+docker compose run --rm seed          # cria as 2 empresas de demonstração no MongoDB do Docker
+```
+
+Acesse **http://localhost:8080** e entre com um dos [usuários de demonstração](#seed-de-demonstração), usando a senha definida em `SEED_PASSWORD`.
+
+O `--wait` só retorna quando os três serviços estão saudáveis: o MongoDB inicializa o replica set no primeiro start e só fica saudável como `PRIMARY`; a API depende do MongoDB saudável; o nginx depende da API saudável. Na primeira execução, o build das imagens baixa as imagens base e instala as dependências, o que leva alguns minutos; as execuções seguintes reaproveitam o cache.
+
+**3. Conferir e testar:**
+
+```bash
+docker compose ps                     # estado e saúde de cada serviço
+curl http://localhost:8080/api/health # {"status":"ok","database":"up"}
+docker compose logs -f backend        # logs da API (Ctrl+C para sair)
+```
+
+**4. Encerrar:**
+
+```bash
+docker compose down        # para e remove os containers; os dados continuam no volume
+```
+
+Para recomeçar do zero, remova também o volume. **Isso apaga definitivamente todos os dados do MongoDB do Docker** (empresas de demonstração, cadastros e produtos criados durante a avaliação):
+
+```bash
+docker compose down -v
+```
+
+Observações:
+
+- O seed recria **apenas** as 2 empresas de demonstração (identificadas pelos e-mails do seed) e pode ser executado novamente a qualquer momento; ele recusa rodar com `NODE_ENV=production` e por isso usa um serviço próprio.
+- A API e o MongoDB não publicam portas na máquina: o único ponto de entrada é o nginx, que serve o frontend e encaminha `/api` (mesma origem, sem CORS).
+- A execução tradicional com npm, descrita a seguir, continua igual e independente do Docker.
+- O workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) constrói as imagens, sobe o ambiente, executa o seed e roda [`docker/ci/smoke-test.mjs`](docker/ci/smoke-test.mjs) (saúde, transação, login, isolamento entre empresas, chat com um provedor de LLM simulado e persistência após reinício), sem chave real da OpenAI.
 
 ## Início rápido
 
@@ -160,6 +226,7 @@ npm run build
 - Os testes do backend **não precisam de `.env`, Atlas ou OpenAI**: usam um replica set em memória e um provedor de LLM simulado. Na primeira execução, o `mongodb-memory-server` baixa o binário do MongoDB (pode levar alguns minutos, apenas uma vez).
 - Cobertura principal: autenticação (token adulterado, expirado, `alg` diferente), permissões por perfil, **isolamento entre empresas** (leitura, edição, exclusão, busca, categorias, injeção de `companyId`), transação do cadastro, seed, validação de entradas, tratamento de erros, agente de IA (fluxo de ferramentas, isolamento, filtros de preço, limites, erros do provedor) e o adaptador da OpenAI com `fetch` simulado.
 - Nenhum teste chama a API real da OpenAI: o `vitest.config.ts` força `OPENAI_API_KEY` vazia.
+- Integração contínua ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)): a cada push, roda typecheck, testes e build de backend e frontend com npm e valida o ambiente Docker de ponta a ponta (ver [Execução com Docker](#execução-com-docker)).
 
 ### Scripts
 
@@ -192,6 +259,7 @@ backend/
     seed/            dados e script de demonstração
     app.ts           monta o Express (dependências injetáveis para testes)
     server.ts        conexão com o banco, provedor de LLM e HTTP
+  Dockerfile         build multi-stage (TypeScript compilado, só dependências de produção)
   tests/             testes de integração e unitários
 frontend/
   src/
@@ -199,6 +267,11 @@ frontend/
     features/        auth, products, users, chat (cada uma com api, tipos, páginas e componentes)
     lib/             cliente HTTP, sessão, dinheiro, erros, permissões, hooks
     styles/          tokens de design (cores, espaçamentos, tipografia)
+  Dockerfile         build de produção + nginx (nginx.conf: SPA e proxy de /api)
+docker/
+  mongo/             inicialização do replica set (healthcheck do MongoDB)
+  ci/                provedor de LLM simulado e testes de fumaça usados só no CI
+docker-compose.yml   MongoDB, API, frontend e a tarefa de seed
 ```
 
 **Backend** organizado por funcionalidade, com responsabilidades separadas:
