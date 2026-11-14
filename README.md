@@ -102,7 +102,7 @@ Coleções e índices são criados automaticamente pelo Mongoose na inicializaç
 
 ## Seed de demonstração
 
-O seed cria **2 empresas**, cada uma com **1 admin, 1 user e 12 produtos** (alguns sem estoque e sem imagem, e com nomes parecidos entre as empresas para evidenciar o isolamento).
+O seed cria **2 empresas**, cada uma com **1 admin, 1 user e 12 produtos** (alguns sem estoque, e com nomes parecidos entre as empresas para evidenciar o isolamento). Todos os produtos têm foto real do Unsplash (licença gratuita do Unsplash), servida pelo CDN `images.unsplash.com`.
 
 ```bash
 npm run seed         # simulação: mostra o destino (sem host nem credenciais) e o plano
@@ -152,7 +152,7 @@ Frontend, a partir da raiz do repositório (os comandos rodam dentro da pasta `f
 
 ```bash
 cd frontend
-npm test                    # 89 testes: regras de dinheiro, formulários, erros, estados do chat e tema
+npm test                    # 96 testes: regras de dinheiro, formulários, erros, estados do chat, tema e carregamento de imagens
 npm run typecheck
 npm run build
 ```
@@ -209,7 +209,7 @@ frontend/
 - **Repositories**: único ponto de acesso aos dados de cada empresa; `companyId` é sempre o primeiro parâmetro.
 - **Erros**: centralizados em `errorHandler`, no formato `{ "error": { "code", "message", "details?" } }`, sem stack ou detalhes internos.
 
-**Frontend**: SPA com rotas protegidas (`/login`, `/cadastro`, `/produtos`, `/produtos/novo`, `/produtos/:id/editar`, `/usuarios`, `/assistente`). Ações não permitidas ao perfil ficam ocultas, mas o backend continua sendo a autoridade sobre permissões. Preços são exibidos em reais e convertidos para centavos sem aritmética de ponto flutuante. Todas as telas tratam carregamento, erro, vazio e confirmação. Há tema claro e escuro: as cores são tokens CSS em `styles/global.css` (um bloco por tema). Na primeira visita vale a preferência do sistema operacional; a escolha manual fica salva em um cookie e é aplicada por `public/theme-init.js` antes da primeira pintura, sem flash de tema.
+**Frontend**: SPA com rotas protegidas (`/login`, `/cadastro`, `/produtos`, `/produtos/novo`, `/produtos/:id/editar`, `/usuarios`, `/assistente`). Ações não permitidas ao perfil ficam ocultas, mas o backend continua sendo a autoridade sobre permissões. Preços são exibidos em reais e convertidos para centavos sem aritmética de ponto flutuante. Todas as telas tratam carregamento, erro, vazio e confirmação. As imagens de produto mostram "Sem imagem" quando não há URL e "Imagem indisponível" quando o carregamento falha ou não termina em 8 segundos, para que um host externo que não responde não deixe o card carregando indefinidamente. Há tema claro e escuro: as cores são tokens CSS em `styles/global.css` (um bloco por tema). Na primeira visita vale a preferência do sistema operacional; a escolha manual fica salva em um cookie e é aplicada por `public/theme-init.js` antes da primeira pintura, sem flash de tema.
 
 ## Isolamento multi-tenant
 
@@ -343,7 +343,7 @@ A versão atual concentra o escopo nos fluxos essenciais: autenticação, autori
 
 | Tema | Implementado hoje | Evolução planejada |
 |---|---|---|
-| Testes automatizados | 167 testes de backend (API, isolamento, IA) e 89 de frontend (regras de negócio, formulários, erros, estados do chat e tema). Os fluxos de tela foram validados no navegador durante o desenvolvimento. | Testes de componentes e testes E2E automatizados (Playwright) versionados no repositório. |
+| Testes automatizados | 167 testes de backend (API, isolamento, IA) e 96 de frontend (regras de negócio, formulários, erros, estados do chat, tema e carregamento de imagens). Os fluxos de tela foram validados no navegador durante o desenvolvimento. | Testes de componentes e testes E2E automatizados (Playwright) versionados no repositório. |
 | Integração contínua | Typecheck, build e testes executados pelos scripts npm de cada pacote. | Pipeline de CI executando essas etapas a cada pull request. |
 | Implantação | Execução local (backend com Node.js, frontend com Vite). | Containerização (Docker), proxy reverso servindo o frontend e `/api` na mesma origem, e deploy automatizado. |
 

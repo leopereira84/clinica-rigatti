@@ -1,7 +1,8 @@
 import { ImageIcon, ImageOff } from 'lucide-react';
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { cx } from '../../../lib/cx';
 import { isHttpUrl } from '../../../lib/url';
+import { type ImageLoadStatus, type ImageLoadTracker, trackImageLoad } from '../imageLoad';
 import styles from './ProductImage.module.css';
 
 interface ProductImageProps {
@@ -12,22 +13,41 @@ interface ProductImageProps {
 
 /**
  * Product image with explicit states: a neutral placeholder while loading,
- * and a "Sem imagem" fallback when the URL is missing, invalid or fails.
+ * "Sem imagem" when there is no valid URL, and "Imagem indisponível" when the
+ * image fails or does not load within the timeout (see `imageLoad.ts`).
  */
 export function ProductImage({ src, alt, className }: ProductImageProps) {
-  const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
-  const [failedSrc, setFailedSrc] = useState<string | null>(null);
-
   const url = src?.trim() ?? '';
-  const canShow = url !== '' && isHttpUrl(url) && failedSrc !== url;
-  const loaded = canShow && loadedSrc === url;
+  const hasUrl = url !== '' && isHttpUrl(url);
+
+  const [result, setResult] = useState<{ url: string; status: ImageLoadStatus } | null>(null);
+  const trackerRef = useRef<ImageLoadTracker | null>(null);
+
+  // Layout effect: the tracker exists before the browser can fire load/error for this URL.
+  useLayoutEffect(() => {
+    if (!hasUrl) return;
+    const tracker = trackImageLoad((status) => setResult({ url, status }));
+    trackerRef.current = tracker;
+    return () => {
+      tracker.cancel();
+      if (trackerRef.current === tracker) trackerRef.current = null;
+    };
+  }, [url, hasUrl]);
+
+  const status: ImageLoadStatus = result?.url === url ? result.status : 'loading';
+  const canShow = hasUrl && status !== 'failed';
+  const loaded = canShow && status === 'loaded';
 
   return (
     <div className={cx(styles.frame, className)}>
       {!canShow && (
-        <div className={styles.placeholder} role="img" aria-label={`${alt}: sem imagem disponível`}>
+        <div
+          className={styles.placeholder}
+          role="img"
+          aria-label={hasUrl ? `${alt}: imagem indisponível` : `${alt}: sem imagem disponível`}
+        >
           <ImageOff aria-hidden="true" />
-          <span>Sem imagem</span>
+          <span>{hasUrl ? 'Imagem indisponível' : 'Sem imagem'}</span>
         </div>
       )}
 
@@ -41,10 +61,10 @@ export function ProductImage({ src, alt, className }: ProductImageProps) {
         <img
           src={url}
           alt={alt}
-          loading="lazy"
+          decoding="async"
           referrerPolicy="no-referrer"
-          onLoad={() => setLoadedSrc(url)}
-          onError={() => setFailedSrc(url)}
+          onLoad={() => trackerRef.current?.loaded()}
+          onError={() => trackerRef.current?.failed()}
           className={cx(styles.image, loaded && styles.imageLoaded)}
         />
       )}

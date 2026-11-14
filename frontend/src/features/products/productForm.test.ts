@@ -9,7 +9,7 @@ const validForm: ProductFormValues = {
   category: ' Sala ',
   stock: '8',
   sku: ' aur-sofa-001 ',
-  imageUrl: ' https://picsum.photos/seed/sofa/600/400 ',
+  imageUrl: ' https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=600 ',
 };
 
 describe('buildProductPayload', () => {
@@ -25,7 +25,7 @@ describe('buildProductPayload', () => {
         category: 'Sala',
         stock: 8,
         sku: 'AUR-SOFA-001',
-        imageUrl: 'https://picsum.photos/seed/sofa/600/400',
+        imageUrl: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=600',
       },
     });
   });
