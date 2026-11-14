@@ -20,7 +20,7 @@ Aplicação full stack em que várias empresas compartilham a mesma infraestrutu
 - [Agente de IA com function calling](#agente-de-ia-com-function-calling)
 - [Endpoints](#endpoints)
 - [Decisões arquiteturais](#decisões-arquiteturais)
-- [Limitações conhecidas e evolução para produção](#limitações-conhecidas-e-evolução-para-produção)
+- [Evolução planejada para produção](#evolução-planejada-para-produção)
 - [Solução de problemas](#solução-de-problemas)
 
 ## Tecnologias
@@ -37,10 +37,14 @@ Aplicação full stack em que várias empresas compartilham a mesma infraestrutu
 
 **Pré-requisitos:** Node.js **22.12 ou superior** (há um `.nvmrc`), npm, um cluster MongoDB (Atlas recomendado) e, opcionalmente, uma chave da OpenAI.
 
+Os comandos abaixo funcionam em Bash, Git Bash, Windows PowerShell 5.1 e PowerShell 7, sempre partindo da raiz do repositório.
+
 ```bash
 # 1. Dependências
-cd backend && npm ci
-cd ../frontend && npm ci
+cd backend
+npm ci
+cd ../frontend
+npm ci
 
 # 2. Configuração do backend
 cd ../backend
@@ -50,9 +54,15 @@ cp .env.example .env        # preencha MONGODB_URI, JWT_SECRET, SEED_PASSWORD e 
 npm run seed                # simulação: mostra destino e plano, não grava nada
 npm run seed:apply          # grava as 2 empresas de demonstração
 
-# 4. Executar (dois terminais)
+# 4. Executar: terminal 1, ainda na pasta backend
 npm run dev                 # backend em http://localhost:3333
-cd ../frontend && npm run dev   # frontend em http://localhost:5173
+```
+
+Em um segundo terminal, a partir da raiz do repositório:
+
+```bash
+cd frontend
+npm run dev                 # frontend em http://localhost:5173
 ```
 
 Acesse **http://localhost:5173**. Em desenvolvimento, o Vite encaminha `/api` para o backend; o frontend não precisa de `.env`.
@@ -161,7 +171,7 @@ backend/
     modules/
       auth/          cadastro (transação), login, /me
       companies/     model e repository
-      users/         gestão mínima de membros (somente admin)
+      users/         membros da empresa (somente admin)
       products/      CRUD, busca, filtros
       chat/          agente de IA
         llm/         contrato neutro (LlmProvider) + adaptador OpenAI
@@ -286,26 +296,44 @@ Produto: `name`, `description`, `price` (**inteiro em centavos**), `category`, `
 | Histórico da conversa no cliente (sem persistência) | Simplicidade; o histórico só contém texto, então não permite forjar resultados de ferramentas |
 | Frontend chama `/api` relativo | Mesma origem em desenvolvimento (proxy do Vite) e em produção (proxy reverso), sem CORS no navegador |
 
-## Limitações conhecidas e evolução para produção
+## Evolução planejada para produção
 
-**Limitações atuais**
+A versão atual concentra o escopo nos fluxos essenciais: autenticação, autorização por perfil, isolamento entre empresas, CRUD do catálogo e assistente de IA, todos cobertos por testes. Para operar em produção com múltiplas instâncias e volume real de clientes, a evolução está organizada nas frentes abaixo. Cada tabela separa o que **está implementado hoje** do que **está planejado**.
 
-- Não há revogação de tokens: o logout acontece no cliente e um token roubado vale até expirar (2 h).
-- O cadastro responde `409` para e-mail já usado, o que permite descobrir se um e-mail está cadastrado (trade-off comum de usabilidade).
-- O rate limit é em memória e por instância; atrás de proxy, é preciso configurar `trust proxy` para usar o IP real.
-- A gestão de usuários é mínima: não há edição, desativação, promoção a admin nem convite por e-mail.
-- Conversas com o assistente não são persistidas.
+### Segurança e sessões
 
-**Melhorias previstas**
+| Tema | Implementado hoje | Evolução planejada |
+|---|---|---|
+| Sessões e tokens | Access token JWT (HS256, 2 h), com usuário, perfil e empresa revalidados no banco a cada requisição. O logout encerra a sessão no cliente; o token permanece válido até expirar. | Refresh tokens com rotação e revogação em cookie `httpOnly`, ou sessão no servidor, permitindo encerrar sessões imediatamente. |
+| Token no navegador | `sessionStorage` (restrito à aba) e interface sem `innerHTML`. | Cookie `httpOnly` e Content Security Policy servida pelo proxy reverso. |
+| Cadastro público | Responde `409` quando o e-mail já existe, priorizando a clareza para quem se cadastra. | Resposta neutra com confirmação por e-mail, sem indicar se o endereço já está cadastrado. |
+| Isolamento multi-tenant | `companyId` obrigatório em todos os repositories, coberto por testes de isolamento. | Plugin de tenant no Mongoose como segunda camada de defesa. |
+| Gestão de usuários | Admin adiciona membros com perfil `user` e lista os membros da empresa. | Edição, desativação, promoção a admin, convites por e-mail e redefinição de senha. |
 
-- Refresh tokens com rotação e revogação (cookie `httpOnly`), ou sessão no servidor.
-- Rate limit distribuído (Redis) e cotas de uso de IA por empresa.
-- Plugin de tenant no Mongoose como segunda camada de defesa, além dos repositories.
-- Gestão completa de usuários, com convites por e-mail e redefinição de senha.
-- Logs estruturados com request id, métricas e monitoramento de custo de tokens.
-- Pipeline de CI (typecheck, build, testes e testes E2E com Playwright), Dockerfile e deploy com proxy reverso servindo frontend e `/api` na mesma origem, com Content Security Policy.
-- Busca com índice de texto ou Atlas Search; upload de imagens em vez de URLs.
-- Streaming das respostas do assistente e persistência opcional das conversas.
+### Escala
+
+| Tema | Implementado hoje | Evolução planejada |
+|---|---|---|
+| Rate limiting | Em memória, por instância: autenticação (20 tentativas a cada 15 min por IP) e assistente (20 mensagens a cada 5 min por usuário). | Armazenamento compartilhado (Redis) entre instâncias, `trust proxy` configurado para identificar o IP real atrás do proxy e cotas de IA por empresa. |
+| Conversas com o assistente | Histórico mantido no cliente durante a sessão e enviado a cada mensagem (até 20). | Persistência por usuário e empresa, com política de retenção, e streaming das respostas. |
+| Busca no catálogo | Expressões regulares escapadas sobre nome, SKU e descrição, com índices iniciados por `companyId`. | Índice de texto ou Atlas Search. |
+| Imagens de produtos | URL externa (`http`/`https`). | Upload para armazenamento de objetos. |
+
+### Monitoramento e observabilidade
+
+| Tema | Implementado hoje | Evolução planejada |
+|---|---|---|
+| Logs | Logs de console sem credenciais e sem o conteúdo das mensagens. Cada interação com o assistente registra usuário, status, iterações, ferramentas usadas e tokens consumidos. | Logs estruturados (JSON) com request id, agregados em uma plataforma centralizada. |
+| Métricas e alertas | `GET /api/health` informa o status da API e do banco. | Métricas de latência, taxa de erro e disponibilidade, com alertas. |
+| Custo de IA | Limites por mensagem (chamadas ao modelo, ferramentas e prazo) e por usuário. | Painel de consumo de tokens por empresa, com cotas configuráveis. |
+
+### Qualidade e entrega
+
+| Tema | Implementado hoje | Evolução planejada |
+|---|---|---|
+| Testes automatizados | 146 testes de backend (API, isolamento, IA) e 78 de frontend (regras de negócio, formulários, erros e estados do chat). Os fluxos de tela foram validados no navegador durante o desenvolvimento. | Testes de componentes e testes E2E automatizados (Playwright) versionados no repositório. |
+| Integração contínua | Typecheck, build e testes executados pelos scripts npm de cada pacote. | Pipeline de CI executando essas etapas a cada pull request. |
+| Implantação | Execução local (backend com Node.js, frontend com Vite). | Containerização (Docker), proxy reverso servindo o frontend e `/api` na mesma origem, e deploy automatizado. |
 
 ## Solução de problemas
 
