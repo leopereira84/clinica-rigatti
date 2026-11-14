@@ -139,11 +139,22 @@ A chave existe **somente no backend**: o navegador conversa com `POST /api/chat`
 
 ## Testes
 
+Backend, a partir da raiz do repositório (os comandos rodam dentro da pasta `backend`):
+
 ```bash
-cd backend && npm test      # 146 testes: API real (Supertest) + MongoDB em memória
-cd frontend && npm test     # 78 testes: regras de dinheiro, formulários, erros e estados do chat
-npm run typecheck           # em cada pacote
-npm run build               # em cada pacote
+cd backend
+npm test                    # 146 testes: API real (Supertest) + MongoDB em memória
+npm run typecheck
+npm run build
+```
+
+Frontend, a partir da raiz do repositório (os comandos rodam dentro da pasta `frontend`):
+
+```bash
+cd frontend
+npm test                    # 78 testes: regras de dinheiro, formulários, erros e estados do chat
+npm run typecheck
+npm run build
 ```
 
 - Os testes do backend **não precisam de `.env`, Atlas ou OpenAI**: usam um replica set em memória e um provedor de LLM simulado. Na primeira execução, o `mongodb-memory-server` baixa o binário do MongoDB (pode levar alguns minutos, apenas uma vez).
