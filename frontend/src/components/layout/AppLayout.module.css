@@ -24,6 +24,16 @@
   padding: 0 var(--space-2);
 }
 
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.topbarToggle {
+  margin-left: auto;
+}
+
 .company {
   margin: var(--space-5) var(--space-2) var(--space-2);
   overflow: hidden;
@@ -196,7 +206,7 @@
     inset: 0;
     z-index: 40;
     display: block;
-    background: rgb(17 24 39 / 0.4);
+    background: var(--color-overlay);
   }
 
   .topbar {

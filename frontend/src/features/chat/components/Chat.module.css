@@ -14,7 +14,7 @@
   display: grid;
   flex-shrink: 0;
   place-items: center;
-  background: linear-gradient(135deg, var(--color-primary) 0%, #7c3aed 100%);
+  background: var(--gradient-accent);
   color: var(--color-text-inverse);
 }
 
@@ -90,7 +90,7 @@
   padding: 10px 14px;
   border-radius: var(--radius-lg) var(--radius-lg) var(--radius-sm) var(--radius-lg);
   background: var(--color-primary);
-  color: var(--color-text-inverse);
+  color: var(--color-on-primary);
   font-size: var(--font-size-sm);
   white-space: pre-wrap;
   overflow-wrap: anywhere;

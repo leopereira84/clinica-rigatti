@@ -4,7 +4,7 @@
   background: linear-gradient(
     90deg,
     var(--color-surface-muted) 0%,
-    #e6e9ee 50%,
+    var(--color-skeleton-highlight) 50%,
     var(--color-surface-muted) 100%
   );
   background-size: 200% 100%;

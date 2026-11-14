@@ -143,7 +143,7 @@ Backend, a partir da raiz do repositório (os comandos rodam dentro da pasta `ba
 
 ```bash
 cd backend
-npm test                    # 146 testes: API real (Supertest) + MongoDB em memória
+npm test                    # 167 testes: API real (Supertest) + MongoDB em memória
 npm run typecheck
 npm run build
 ```
@@ -152,7 +152,7 @@ Frontend, a partir da raiz do repositório (os comandos rodam dentro da pasta `f
 
 ```bash
 cd frontend
-npm test                    # 78 testes: regras de dinheiro, formulários, erros e estados do chat
+npm test                    # 89 testes: regras de dinheiro, formulários, erros, estados do chat e tema
 npm run typecheck
 npm run build
 ```
@@ -209,7 +209,7 @@ frontend/
 - **Repositories**: único ponto de acesso aos dados de cada empresa; `companyId` é sempre o primeiro parâmetro.
 - **Erros**: centralizados em `errorHandler`, no formato `{ "error": { "code", "message", "details?" } }`, sem stack ou detalhes internos.
 
-**Frontend**: SPA com rotas protegidas (`/login`, `/cadastro`, `/produtos`, `/produtos/novo`, `/produtos/:id/editar`, `/usuarios`, `/assistente`). Ações não permitidas ao perfil ficam ocultas, mas o backend continua sendo a autoridade sobre permissões. Preços são exibidos em reais e convertidos para centavos sem aritmética de ponto flutuante. Todas as telas tratam carregamento, erro, vazio e confirmação.
+**Frontend**: SPA com rotas protegidas (`/login`, `/cadastro`, `/produtos`, `/produtos/novo`, `/produtos/:id/editar`, `/usuarios`, `/assistente`). Ações não permitidas ao perfil ficam ocultas, mas o backend continua sendo a autoridade sobre permissões. Preços são exibidos em reais e convertidos para centavos sem aritmética de ponto flutuante. Todas as telas tratam carregamento, erro, vazio e confirmação. Há tema claro e escuro: as cores são tokens CSS em `styles/global.css` (um bloco por tema). Na primeira visita vale a preferência do sistema operacional; a escolha manual fica salva em um cookie e é aplicada por `public/theme-init.js` antes da primeira pintura, sem flash de tema.
 
 ## Isolamento multi-tenant
 
@@ -228,7 +228,7 @@ Os testes de isolamento criam duas empresas com produtos de nomes e SKUs semelha
 
 Fluxo de `POST /api/chat` (autenticado, perfis `admin` e `user`):
 
-1. O cliente envia o histórico da conversa como **texto** (`user`/`assistant`, até 20 mensagens de até 2.000 caracteres). O cliente não pode enviar chamadas nem resultados de ferramentas, portanto não consegue forjar dados do catálogo.
+1. O cliente envia uma pergunta avulsa, `{ "message": "Quero consultar os produtos" }`, ou o histórico da conversa como **texto**, `{ "messages": [{ "role": "user", "content": "..." }] }` (`user`/`assistant`, até 20 mensagens). O frontend usa o histórico. Os dois formatos são normalizados para o mesmo histórico antes do agente, com até 2.000 caracteres por mensagem. Qualquer outro campo (`companyId`, `role` etc.), ou os dois formatos juntos, resultam em `400`. O cliente não pode enviar chamadas nem resultados de ferramentas, portanto não consegue forjar dados do catálogo.
 2. O backend envia ao modelo o prompt de sistema, o histórico e a definição das ferramentas (JSON Schema em modo **strict**).
 3. Quando o modelo pede uma ferramenta, o backend **revalida os argumentos com Zod**, executa a consulta no MongoDB com o `companyId` do usuário autenticado e devolve o resultado ao modelo.
 4. O ciclo se repete até a resposta final, que é retornada com a lista das consultas efetivamente executadas.
@@ -288,7 +288,7 @@ Base: `/api`. Exceto `health`, `auth/register` e `auth/login`, todos exigem `Aut
 | DELETE | `/products/:id` | admin | Exclui (`204`) |
 | GET | `/users` | admin | Membros da empresa |
 | POST | `/users` | admin | Adiciona membro com perfil `user` |
-| POST | `/chat` | admin, user | Assistente de IA |
+| POST | `/chat` | admin, user | Assistente de IA; corpo `{ message }` ou `{ messages }` |
 
 Produto: `name`, `description`, `price` (**inteiro em centavos**), `category`, `imageUrl` (somente `http`/`https`), `sku` (único por empresa), `stock`. Rotas de autenticação têm limite de 20 tentativas a cada 15 minutos por IP; o corpo das requisições é limitado a 100 kB.
 
@@ -305,6 +305,7 @@ Produto: `name`, `description`, `price` (**inteiro em centavos**), `category`, `
 | Contrato neutro de LLM com adaptador por provedor | A lógica do agente e os testes não dependem do SDK; trocar de provedor não afeta as regras de negócio |
 | Loop do agente escrito no backend, sem frameworks de agentes | Controle total sobre limites, isolamento, erros e logs, e sem recursos beta |
 | Histórico da conversa no cliente (sem persistência) | Simplicidade; o histórico só contém texto, então não permite forjar resultados de ferramentas |
+| Preferência de tema em cookie (não em `localStorage`) | Persiste entre sessões, não contém dado sensível e pode ser lida de forma síncrona por um script externo no `<head>`, compatível com uma futura CSP |
 | Frontend chama `/api` relativo | Mesma origem em desenvolvimento (proxy do Vite) e em produção (proxy reverso), sem CORS no navegador |
 
 ## Evolução planejada para produção
@@ -342,7 +343,7 @@ A versão atual concentra o escopo nos fluxos essenciais: autenticação, autori
 
 | Tema | Implementado hoje | Evolução planejada |
 |---|---|---|
-| Testes automatizados | 146 testes de backend (API, isolamento, IA) e 78 de frontend (regras de negócio, formulários, erros e estados do chat). Os fluxos de tela foram validados no navegador durante o desenvolvimento. | Testes de componentes e testes E2E automatizados (Playwright) versionados no repositório. |
+| Testes automatizados | 167 testes de backend (API, isolamento, IA) e 89 de frontend (regras de negócio, formulários, erros, estados do chat e tema). Os fluxos de tela foram validados no navegador durante o desenvolvimento. | Testes de componentes e testes E2E automatizados (Playwright) versionados no repositório. |
 | Integração contínua | Typecheck, build e testes executados pelos scripts npm de cada pacote. | Pipeline de CI executando essas etapas a cada pull request. |
 | Implantação | Execução local (backend com Node.js, frontend com Vite). | Containerização (Docker), proxy reverso servindo o frontend e `/api` na mesma origem, e deploy automatizado. |
 

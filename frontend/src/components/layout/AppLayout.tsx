@@ -5,6 +5,7 @@ import { useAuth, useSession } from '../../features/auth/AuthContext';
 import { cx } from '../../lib/cx';
 import { type Permission, ROLE_LABELS } from '../../lib/permissions';
 import { Brand } from '../Brand';
+import { ThemeToggle } from '../theme/ThemeToggle';
 import { Badge } from '../ui/Badge';
 import styles from './AppLayout.module.css';
 
@@ -44,10 +45,13 @@ export function AppLayout() {
       <aside id="app-sidebar" className={cx(styles.sidebar, menuOpen && styles.sidebarOpen)}>
         <div className={styles.sidebarHeader}>
           <Brand />
-          <button type="button" className={styles.closeMenu} onClick={() => setMenuOpen(false)}>
-            <X aria-hidden="true" />
-            <span className="visually-hidden">Fechar menu</span>
-          </button>
+          <div className={styles.headerActions}>
+            <ThemeToggle />
+            <button type="button" className={styles.closeMenu} onClick={() => setMenuOpen(false)}>
+              <X aria-hidden="true" />
+              <span className="visually-hidden">Fechar menu</span>
+            </button>
+          </div>
         </div>
 
         <p className={styles.company} title={company.name}>
@@ -95,6 +99,7 @@ export function AppLayout() {
             <span className="visually-hidden">Abrir menu</span>
           </button>
           <Brand />
+          <ThemeToggle className={styles.topbarToggle} />
         </header>
 
         <main className={styles.content}>

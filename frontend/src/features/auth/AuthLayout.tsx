@@ -1,6 +1,7 @@
 import { Bot, Building2, ShieldCheck } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Brand } from '../../components/Brand';
+import { ThemeToggle } from '../../components/theme/ThemeToggle';
 import styles from './AuthLayout.module.css';
 
 const HIGHLIGHTS = [
@@ -36,6 +37,7 @@ export function AuthLayout({ title, subtitle, children, footer }: AuthLayoutProp
       </aside>
 
       <main className={styles.main}>
+        <ThemeToggle className={styles.themeToggle} />
         <div className={styles.mobileBrand}>
           <Brand />
         </div>

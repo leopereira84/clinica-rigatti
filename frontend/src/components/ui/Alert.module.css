@@ -36,18 +36,18 @@
 
 .error {
   background: var(--color-danger-soft);
-  border-color: rgb(192 40 45 / 0.25);
-  color: #8a1c20;
+  border-color: var(--color-danger-border);
+  color: var(--color-danger-soft-text);
 }
 
 .info {
   background: var(--color-primary-soft);
-  border-color: rgb(67 56 202 / 0.2);
+  border-color: var(--color-primary-border);
   color: var(--color-primary-soft-text);
 }
 
 .success {
   background: var(--color-success-soft);
-  border-color: rgb(19 119 74 / 0.25);
-  color: #0e5a38;
+  border-color: var(--color-success-border);
+  color: var(--color-success-soft-text);
 }

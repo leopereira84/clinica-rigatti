@@ -1,0 +1,26 @@
+.toggle {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition:
+    background-color var(--transition),
+    color var(--transition);
+}
+
+.toggle:hover {
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+}
+
+.toggle svg {
+  width: 18px;
+  height: 18px;
+}
