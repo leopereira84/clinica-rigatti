@@ -1,0 +1,39 @@
+.spinner {
+  display: inline-block;
+  flex-shrink: 0;
+  border-radius: var(--radius-full);
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  animation: spin 0.7s linear infinite;
+  opacity: 0.85;
+}
+
+.sm {
+  width: 14px;
+  height: 14px;
+}
+
+.md {
+  width: 20px;
+  height: 20px;
+}
+
+.lg {
+  width: 32px;
+  height: 32px;
+  border-width: 3px;
+  color: var(--color-primary);
+}
+
+.fullPage {
+  display: grid;
+  place-items: center;
+  min-height: 100%;
+  padding: var(--space-10);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
